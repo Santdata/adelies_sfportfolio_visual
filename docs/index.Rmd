@@ -1,0 +1,333 @@
+---
+title: "Adelie Penguins Visuals"
+author: "Santiago Florimonte"
+output:
+  html_document:
+    theme: flatly
+    toc: TRUE
+    toc_depth: 3
+    toc_float:
+      smooth_scroll: TRUE
+      collapsed: TRUE
+---
+
+
+```{r include=FALSE}
+knitr::opts_chunk$set(
+  echo = FALSE, warning=FALSE, fig.height=7, fig.width=11)
+```
+
+
+```{r libraries, include=FALSE}
+library(tidyverse) # replace_na() || library(ggplot2) # annotation_custom()
+library(sf) # st_as_sf() ; st_transform() ; st_geometry()
+library(rnaturalearth) # ne_countries()  
+library(pandoc) # Resizing images
+library(scales) # "labels = comma"
+library(grid) # "rasterGrob()"
+library(cowplot) # draw_image()
+library(openxlsx) # read.xlsx()
+library(magick) # image_scale() ; image_read() ; image_trim() ; image_border() ; image_flop()
+library(kableExtra) # kbl()
+library(reactable) # reactable()
+library(DT) # datatable()
+  # Non specified come from either tidyverse or baseR
+```
+
+```{r datasets, include=FALSE}
+# saint_analytics logo
+
+path_saint_1 <- "C://Users//santi//Desktop//saint_analytics//projects_&_work//saint_animalia//Adelie Penguins//saint_analytics(11).png"
+img_saint_01 <- image_read(path = path_saint_1) %>% image_scale(., "x500")
+img_saint_1 <- img_saint_01 %>% image_trim()
+  # Bodies plot data -----
+Peng_nm <-  c("Adelie\n(Pygoscelis adeliae)", "Chisntrap\n(Pygoscelis antarcticus)", "Emperor\n(Aptenodytes forsteri)", "Gentoo\n(Pygoscelis papua)") 
+Peng_ht <- c(60, 70, 120, 75)
+Peng_body_df <- data.frame(Peng_nm, Peng_ht)
+Peng_body_df
+peng_summ_df <- data.frame(summ = c("- Height: 60 cm\n- Home: Antarctica\n- Weight: 5 kg", 
+                                    "- Height: 70 cm\n- Home: Antarctic Peninsula &\nAntarctic islands\n- Weight: 4,2 kg", 
+                                    "- Height: 120 cm\n- Home: Antarctica\n- Weight: 35 kg",
+                                    "- Height: 76 cm\n- Home: Antarctic Peninsula &\nAntarctic islands\n- Weight: 5,4 kg"), 
+     x_coord = c(.62, 1.62, 2.62, 3.62), 
+     y_coord = c(72, 82, 132, 87))
+Peng_body_plotdf <- Peng_body_df %>%  bind_cols(peng_summ_df)
+  # Images 
+path_ch <- "C://Users//santi//Desktop//saint_analytics//projects_&_work//saint_animalia//Adelie Penguins//Adelie_plot1_chinstrap(1).png"
+img_ch <- image_read(path = path_ch) %>% image_scale(., "x500") %>% image_flop()
+path_ad <- "C://Users//santi//Desktop//saint_analytics//projects_&_work//saint_animalia//Adelie Penguins//Adelie_plot1_adelie(5).png"
+img_ad <- image_read(path = path_ad) %>% image_scale(., "x400") 
+path_emp <- "C://Users//santi//Desktop//saint_analytics//projects_&_work//saint_animalia//Adelie Penguins//Adelie_plot1_emperor(1).png"
+img_emp <- image_read(path = path_emp) %>% image_scale(., "x950")
+path_ge <- "C://Users//santi//Desktop//saint_analytics//projects_&_work//saint_animalia//Adelie Penguins//Adelie_plot1_Gentoo(2).png"
+img_ge <- image_read(path = path_ge) %>% image_scale(., "x600") %>% image_flop()
+  # Maps data ----
+colonies_df <- read.xlsx("C://Users//santi//Desktop//saint_analytics//projects_&_work//saint_animalia//Adelie Penguins//Spreadsheets//Adelie_geo.xlsx", sheet = 4)
+ccamlr_reg_abs <- character(0)
+for (i in colonies_df$cammlr_region) {
+  if (i %in% c('48.1', '48.2')) {
+  ccamlr_reg_abs <- c(ccamlr_reg_abs, '48')
+} else if (i %in% c('58.4.1', '58.4.2')) {
+  ccamlr_reg_abs <- c(ccamlr_reg_abs, '58')
+} else if (i %in% c('88.1', '88.2', '88.3')) {
+  ccamlr_reg_abs <- c(ccamlr_reg_abs, '88')
+} 
+}
+colonies_df <- bind_cols(colonies_df, ccamlr_reg_abs = ccamlr_reg_abs)
+colonies_tr_df <- st_as_sf(colonies_df, coords =
+                       c("longitude_epsg_4326","latitude_epsg_4326"),crs=4326)    
+# colonies_2tr_df <- st_transform(colonies_tr_df,"+proj=laea +lat_1=-67.64292238209752 +lat_2=-43.70345673689002 +lon_0=-60.46875")
+colonies_2tr_df <- st_transform(colonies_tr_df,"+proj=laea +lat_0=-50 +lon_0=0")
+pop_table <- colonies_df %>% na.omit() %>% filter(., penguin_count != 0) %>% 
+  group_by(ccamlr_reg_abs) %>% 
+  summarise(., 'Penguins (n)' = sum(penguin_count, na.rm = T), 
+            'Most freq. vantage' = (names(which.max(table(na.omit(vantage))))), 
+            'Most freq. accuracy' = (names(which.max(table(na.omit(accuracy)))))) %>% 
+  bind_cols(., colonies_df %>% na.omit() %>% filter(., penguin_count != 0) %>% count(ccamlr_reg_abs) %>% select(., 'Colonies (n)' = n)) %>% 
+  bind_rows(., colonies_df %>% na.omit() %>% filter(., penguin_count != 0) %>% 
+              summarise(., 'ccamlr_reg_abs' = c("Antarctica"),
+                        'Penguins (n)' = sum(penguin_count),
+            'Most freq. vantage' = (names(which.max(table(vantage)))),
+            'Most freq. accuracy' = (names(which.max(table(accuracy)))), 
+            'Colonies (n)' = c(245))) %>% mutate(., `Most freq. accuracy` = as.numeric(`Most freq. accuracy`)) %>% 
+  rename(., 'Region' = 'ccamlr_reg_abs',
+         'Penguin count' = 'Penguins (n)',
+         'Most frequent counting method' = 'Most freq. vantage',
+         'Most frequent counting accuracy' = 'Most freq. accuracy')
+  # Breeding plot data ---- 
+laps <- seq(1,6,1)
+groups <- c(rep(1,3), rep(3,3))
+join_breeding_plotdf <- data.frame(laps, groups)
+arrow_ref_breedingplot <- data.frame(
+  x = c(4.8, 3.6, 1.8, 0.6, 1.1, 2.9, 5.1), xend = c(4.7,3.1, 1.3, 0.6, 1.6, 3.4,5.1),
+  y = c(rep(3.5,3), 2.9, rep(1.5,2), 1), yend = c(rep(3.5,3),2.4, rep(1.5,2),0.9)) 
+curve_ref_breedingplot <- data.frame(
+  x = c(5.1,0.4,4.7), xend = c(4.3,0.4,5.1), 
+  y = c(4, 3.5, 1.5), yend = c(3.5, 1.5, 0.9), curv = c(-.5, .5, -.5))
+breed_summ_plotdf <- data.frame(summ = c("October sees males arriving first at the\ncolony to build pebble nests", "When females arrive, after a brief ritual,\nmatting begins", "Around November females lay\neggs, usually a pair", "By the beginning of\nDecember chicks hatch the egg", "3 weeks after birth, chicks can be\nleft alone on crèches", "Breeding season ends in mid-february\nwhen everyone leaves the colony"), 
+     x_coord = c(3.5,2,0.5, 0.5, 2, 3.5), 
+     y_coord = c(rep(4.1,3), rep(0.7, 3)))
+  # Images 
+path_ad_c1 <- "C://Users//santi//Desktop//saint_analytics//projects_&_work//saint_animalia//Adelie Penguins//adelie-penguin-cycle (1)_.png"
+path_ad_c2 <- "C://Users//santi//Desktop//saint_analytics//projects_&_work//saint_animalia//Adelie Penguins//adelie-penguin-cycle (2)_.png"
+path_ad_c3a <- "C://Users//santi//Desktop//saint_analytics//projects_&_work//saint_animalia//Adelie Penguins//adelie-penguin-cycle (3a)_.png"
+path_ad_c4a <- "C://Users//santi//Desktop//saint_analytics//projects_&_work//saint_animalia//Adelie Penguins//adelie-penguin-cycle (4a).png"
+path_ad_c5 <- "C://Users//santi//Desktop//saint_analytics//projects_&_work//saint_animalia//Adelie Penguins//adelie-penguin-cycle (5)_.png"
+path_ad_c6 <- "C://Users//santi//Desktop//saint_analytics//projects_&_work//saint_animalia//Adelie Penguins//adelie-penguin-cycle (6)_.png"
+img_ad_c1 <- image_read(path = path_ad_c1) %>% image_scale(., "x400")
+img_ad_c2 <- image_read(path = path_ad_c2) %>% image_scale(., "x400")
+img_ad_c3a <- image_read(path = path_ad_c3a) %>% image_scale(., "x400") %>% image_flop()
+img_ad_c4a <- image_read(path = path_ad_c4a) %>% image_scale(., "x400")
+img_ad_c5 <- image_read(path = path_ad_c5) %>% image_scale(., "x400")
+img_ad_c6 <- image_read(path = path_ad_c6) %>% image_scale(., "x400") %>% image_flop()
+  # Credits ----
+img_cred <- data.frame(
+  imagery_tag = c("GIF (1)", "GIF (2)",  "Comparing adelies (1)", "Comparing adelies (2)", "Comparing adelies (3)", "Comparing adelies (4)", "Adelie breeding cycle (1)_s", "Adelie breeding cycle (2)_s", "Adelie breeding cycle (3)_s", "Adelie breeding cycle (4)_s", "Adelie breeding cycle (5)_s", "Adelie breeding cycle (6)_s"),
+  imagery_credit = c("Petsnurturing", "Ney Pereira", "cactus82", "Terathopius on flickr", "Oceanwide expeditions", "Christian Sanchez", "© Angela Perryman", "Brocken Inaglory in", "Roaming the world on flickr", "University of Delaware-Megan Cimino", "NA", "Phillip  Cola, Oceanlight.com"),
+  imagery_link = c("https://ar.pinterest.com/pin/1137158974637814830/", "https://ar.pinterest.com/pin/1137158974637814886/", "https://ar.pinterest.com/pin/1137158974637771788/", "https://ar.pinterest.com/pin/1137158974637766022/", "https://ar.pinterest.com/pin/1137158974637772031/", "https://ar.pinterest.com/pin/201184308344100998/",   "https://www.dreamstime.com/adelie-penguin-collecting-pebble-antarctica-adelie-penguin-collecting-pebble-as-part-mating-ritual-antarctica-image104550592", "https://commons.wikimedia.org/wiki/File:Mating_adele.JPG", "https://ar.pinterest.com/pin/1137158974637814788/","https://www.udel.edu/udaily/2016/june/antarctic-penguins-climate-change/", "https://ar.pinterest.com/pin/1137158974637737804/", "https://ar.pinterest.com/pin/685039793336586237/")
+  )
+sou_lk <- data.frame(
+  source = c("First global census of the Adelie Penguin", "Projected asymmetric response of Adélie penguins to Antarctic climate change", "Continental-scale mapping of Adélie penguin colonies from Landsat imagery", "A global population assessment
+of the Chinstrap penguin (Pygoscelis antarctica)", "Australian Antarctic Program (AAP)", "British Antarctic Survey (BAS)", "Adelies in the International Union for the Conservation of Nature 'red list'", "Oceanwide Expeditions", "Smithsonian Ocean", "Two Oceans Aquarium", "Wood Hole Oceanographic Institute (WHOI)", "World Wildlife Fund (WWF)", "Mapping Application for Penguin Populations and Projected Dynamics (MAPPPD)"),
+  source_link = c("https://academic.oup.com/auk/article/131/4/457/5149378?login=false", "https://www.researchgate.net/publication/304580060_Projected_asymmetric_response_of_Adelie_penguins_to_Antarctic_climate_change#pf8","https://www.sciencedirect.com/science/article/pii/S0034425713002678#f0015", "https://www.nature.com/articles/s41598-020-76479-3.pdf?origin=ppub", "https://www.antarctica.gov.au/about-antarctica/animals/penguins/adelie-penguin/", "https://www.bas.ac.uk/about/antarctica/wildlife/penguins/adelie-penguin/",
+                  "https://www.iucnredlist.org/species/22697758/157660553", "https://oceanwide-expeditions.com/to-do/wildlife/adelie-penguin", "https://ocean.si.edu/ocean-life/seabirds/penguins", "https://www.aquarium.co.za/blog/entry/26-types-of-penguin-the-cutest-list-on-the-internet", "https://www.whoi.edu/press-room/news-release/unknown-supercolony-Adelie-Penguins-Discovered-in-Antarctica/", "https://www.wwf.org.uk/learn/fascinating-facts/adelie-penguins", "https://www.penguinmap.com/mapppd/"), 
+  access = c("Article 1", "Article 2", "Article 3", "Article 4","AAP", "BAS", "IUCN",  "Oceanwide Expeditions", "Smithsonian Ocean", "Two Oceans Aquarium", "WHOI", "WWF", "MAPPPD"))
+```
+
+
+
+```{css}
+  #TOC {
+    max-width: 500px
+    }
+  
+```
+    
+
+## **Summary**
+
+  
+  * **Context**
+    + This document puts together the visuals used in Adelie Penguins Overview Project, which belongs to **Santiago Florimonte's portfolio**, and is part of **saint_analytics**, a business idea in the making.
+  * **What you'll find**
+    + Visuals about Adelie penguins
+    + Tables containing datasets for the visuals, sources, and credits
+
+## **Visuals**
+
+### **Adelies among penguins**
+
+```{r plot I}
+ggplot(Peng_body_plotdf) +
+  geom_point(aes(x =Peng_nm, y = Peng_ht), size = 2) +
+  draw_image(img_ad, x = 0.5, y = 10, height = 40, scale = 1.5) +
+  draw_image(img_ch, x = 1.4, y = 10, height = 45, scale = 1.5) +
+  draw_image(img_emp, x = 2.5, y = 15, height = 83, scale = 1.5) +
+  draw_image(img_ge, x = 3.5, y = 10, height = 50, scale = 1.5) +
+  scale_y_continuous(limits = c(1,145), breaks = c(seq(0,160,40))) +
+  labs(title = "Comparing Adelies to other penguins", 
+       subtitle = "(numbers represent averages)", y = "Height (cm)", x = NULL) + theme_classic() +
+  theme(axis.ticks.y = element_line(linewidth = 0), 
+        axis.text = element_text(size = 14), 
+        panel.grid.major.y = element_line(color = 'grey', linewidth = .25), 
+        plot.title = element_text(size = 18, face = 'bold', hjust = 0),
+        plot.subtitle = element_text(size = 14, face = 'bold', hjust = 0),
+        plot.margin = unit(c(2.5, 1, 1, 1), "lines")) +
+  annotation_custom(img_saint_1 %>% rasterGrob(), 
+                    xmin=3.7, xmax=4.5, ymin=147, ymax=177) +
+  coord_cartesian(clip = "off") +
+  annotate("text", label = Peng_body_plotdf$summ  ,
+           x = Peng_body_plotdf$x_coord, y = Peng_body_plotdf$y_coord, color = "black", 
+           size = 9/.pt, hjust = 0) +
+  annotate("segment", x = seq(0.6,3.6, 1), xend = seq(1, 4, 1), 
+           y = Peng_body_plotdf$Peng_ht, yend = Peng_body_plotdf$Peng_ht, 
+           color = "black", linewidth = 2/.pt) +
+  annotate("segment", x = seq(0.6,3.6, 1), xend = seq(0.6,3.6, 1), 
+           y = Peng_body_plotdf$Peng_ht, yend = c(82, 92, 142, 97), 
+           color = "black", linewidth = 2/.pt)
+```
+
+******
+ 
+### **Antarctica: Home of Adelies**
+
+```{r plot II}
+ggplot(colonies_2tr_df) +
+  geom_sf(data = st_transform(ne_countries(
+    continent = c("Antarctica"), returnclass = "sf")), fill="#FFFFFF") +
+   geom_sf(alpha = .8, mapping = aes(fill = ccamlr_reg_abs, shape = ccamlr_reg_abs), 
+          size = 2, color = "black") + 
+  scale_shape_manual(name = "CCAMLR Regions", values = c(21,22,23)) +
+  scale_fill_manual(name = "CCAMLR Regions", 
+                    values = c("#3399FF", "#336666", "#999999")) +
+  labs(title = "Adelie colonies",
+       subtitle = "Colonies recorded from the 80's up to date", 
+       caption = "CCAMLR: Commision for the Conservation of Antarctica Marine Living Resources.") +
+  theme(panel.background = element_rect(fill="lightblue"),
+        title = element_text(size = 14, face = 'bold', hjust = 0),
+        plot.subtitle = element_text(size = 14, face = 'bold', hjust = 0), 
+        plot.caption = element_text(size = 10),
+        legend.title = element_text(size = 10),
+        plot.margin = unit(c(2.5, 1, 1, 1), "lines")) +
+  annotation_custom(img_saint_1 %>% rasterGrob(), 
+                    xmin=3200000, xmax=4800000, ymin=-1900000, ymax=-700000) +
+  coord_sf(clip = "off")
+kbl(pop_table, format.args = list(big.mark = ","), align = "c") %>% 
+  kable_styling(full_width = F, bootstrap_options = "striped") %>%  
+  column_spec(3, color = ifelse(pop_table$`Most frequent counting accuracy` > 1, 
+                                "red", "green"), width = "4cm") %>% 
+  column_spec(4, color = ifelse(pop_table$`Most frequent counting accuracy` > 1, 
+                                "red", "green"), width = "4cm") %>% 
+  row_spec(0, bold = T ) %>% 
+  row_spec(4, bold = T ) %>% 
+  footnote("'Penguin count only considers penguins or nests in the colonies at the time of counting.\nvhr: Very High Quality. Refering to image resolution of pictures taken from alternative counting methods.", footnote_as_chunk = T, 
+           general_title = " ")
+```
+
+******* 
+ 
+### **Adelies breeding**
+
+```{r plot III}
+ggplot(join_breeding_plotdf) + 
+  geom_point(aes(x = laps, y = groups), color = "white") +
+  geom_segment(data = arrow_ref_breedingplot, 
+               aes(x = x, xend = xend, y = y, yend = yend), 
+           color = "#3399CC",
+           size = 20, linejoin = c('mitre'),
+           arrow = arrow(angle = 30, length = unit(0.4,'inches'))) +
+  geom_curve(data = curve_ref_breedingplot, aes(x = 5.1, y = 4, xend = 4.8, yend = 3.5), 
+             color = "#3399CC",
+             curvature = -.5, size = 20, lineend = c('square')) +
+  geom_curve(data = curve_ref_breedingplot, aes(x = 4.75, y = 1.5, xend = 5.1, yend = 0.9), 
+             color = "#3399CC",
+             curvature = -.5, size = 20, lineend = c('butt')) +
+  annotate("text", label = breed_summ_plotdf$summ  ,
+           x = breed_summ_plotdf$x_coord, y = breed_summ_plotdf$y_coord, color = "black", 
+           size = 3.5, hjust = 0) +
+  annotate("text", label = rep("Forage season", 2)  ,
+           x = c(5.1, 5.1), y = c(4.4, 0.3), color = "#3399CC", 
+           size = 5, fontface = "bold") +
+  draw_image(img_ad_c1, x = 3.6, y = 2.6, height = 1.3) +
+  draw_image(img_ad_c2, x = 1.8, y = 2.8, height = 1.1) +
+  draw_image(img_ad_c3a, x = 0.2, y = 3, height = .8) +
+  draw_image(img_ad_c4a, x = 0.2, y = 0.9, height = .9) +
+  draw_image(img_ad_c5, x = 1.8, y = 0.85, height = .9) + 
+  draw_image(img_ad_c6, x = 3.7, y = 0.8, height = 1.3) +
+  scale_y_continuous(limits = c(0.2,4.5)) + 
+  scale_x_continuous(limits = c(.5,5.25), name = '') +
+  labs(title = "Adelies breeding cycle",
+       subtitle = " ") +
+  theme(panel.background = element_rect(fill = "white"), 
+        title = element_text(size = 16, face = 'bold', hjust = 0), 
+        plot.caption = element_text(size = 10),
+        axis.ticks = element_blank(), axis.text = element_blank(), 
+        axis.title = element_blank(), axis.line.x.top = element_line(linewidth = 2), 
+        panel.border = element_rect(colour = "grey", fill = NA, linewidth = .5),
+        plot.margin = unit(c(2.5, 1, 1, 1), "lines")) +
+  annotation_custom(img_saint_1 %>% rasterGrob(), 
+                    xmin=4.2, xmax=5.6, ymin=4.72, ymax=5.34) +
+  coord_cartesian(clip = "off")
+```
+
+******* 
+ 
+## **Appendix**
+
+******* 
+### **imagery credits**
+```{r table II}
+# Table of 12 rows, 2 columns: c(Article Tag, credit)
+reactable(
+  img_cred, pagination = FALSE, highlight = TRUE, height = 175, 
+  columns = list(
+   # Use raw HTML
+    imagery_tag = colDef(name = "Image label"),
+    imagery_credit = colDef(name = "Credits (w/link)", html = TRUE, 
+                            cell = function(value, index) {
+      sprintf('<a href="%s" target="_blank">%s</a>', img_cred$imagery_link[index], value)
+    }), 
+    imagery_link = colDef(show = F) 
+  )
+)
+```
+******* 
+### **sources**
+
+```{r table III}
+# Table of n rows, 2 columns: c(Name, links "source link")
+reactable(
+  sou_lk, pagination = FALSE, highlight = TRUE, height = 175, 
+  columns = list(
+   # Use raw HTML
+    source = colDef(name = "Source"),
+    access = colDef(name = "Source Access", html = TRUE, 
+                            cell = function(value, index) {
+      sprintf('<a href="%s" target="_blank">%s</a>', sou_lk$source_link[index], value)
+    }), 
+    source_link = colDef(show = F) 
+  )
+)
+```
+******* 
+### **data sets**
+
+  * **Comparison dataset**
+
+```{r table IV}
+Peng_body_plotdf %>% datatable(rownames = F, 
+                              extensions = 'Buttons',
+                              options = list(dom = 'Blfrtip',
+                                             buttons = c('copy', 'csv', 'excel'), 
+                           pageLength = 4, lengthMenu = c(1, 2, 4)))
+```
+
+  * **Maps dataset**
+  
+```{r table V}
+colonies_2tr_df %>% datatable(rownames = F, 
+                              extensions = 'Buttons',
+                              options = list(dom = 'Blfrtip',
+                                             buttons = c('copy', 'csv', 'excel'), 
+                           pageLength = 4, lengthMenu = c(4, 8, 12)))
+```
