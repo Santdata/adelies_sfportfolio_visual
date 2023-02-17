@@ -148,7 +148,7 @@ of the Chinstrap penguin (Pygoscelis antarctica)", "Australian Antarctic Program
 
   
   * **Context**
-    + This document puts together the visuals used in Adelie Penguins Overview Project, which belongs to **Santiago Florimonte's portfolio**, and is part of **saint_analytics**, a business idea in the making.
+    + This document puts together the visuals used in [Adelie Penguins Overview Project](https://santdata.github.io/adelies_sfportfolio/), which belongs to **Santiago Florimonte's portfolio**, and is part of **saint_analytics**, a business idea in the making.
   * **What you'll find**
     + Visuals about Adelie penguins
     + Tables containing datasets for the visuals, sources, and credits
